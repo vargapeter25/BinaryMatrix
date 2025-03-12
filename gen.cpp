@@ -4,6 +4,7 @@
 #include <iostream>
 #include <bitset>
 #include <random>
+#include <set>
 using namespace std;
 
 constexpr const int N = 6;
@@ -96,48 +97,174 @@ struct ord_mat_generator{
     }
 };
 
-int main(){
-    int counter = 0;
-    vector<pair<mat, sub_matrix_mask>> normal_forms;
-    
-    ord_mat_generator<N> gen;
-    vector<uint64_t> norm_form_data;
-    do{
-        if(counter%1000 == 0) cerr << "iteration: " << (counter / 1000) << endl;
-        
-        counter++;
-        mat m = gen.get_mat();
-        if(m.singular()) {
-            cerr << "wrong!!!!!!!!!!!!" << endl;
-            print(m);
-            cerr << "-----------------" << endl;
+template<uint32_t N, uint32_t K>
+bool comp(SmallBinaryMatrix<N> m1, SmallBinaryMatrix<N> m2){
+    if constexpr (K <= 1) {
+        return (m2.get_data() & m1.get_data()) == m1.get_data();
+    } else {
+        if(!comp<N, K-1>(m1, m2)) return false;
+        for(auto rows : subset_mask<N, K>) {
+            for(auto cols : subset_mask<N, K>) {
+                auto m12 = m1.template sub_matrix<K>(rows, cols);
+                auto m22 = m2.template sub_matrix<K>(rows, cols);
+                if(!m12.singular() && m22.singular()) return false;
+            }
         }
+        return true;
+    }
+}
 
-        norm_form_data.push_back(get_normal_form(m).get_data());
-    } while(gen.nxt());
-
-    sort(norm_form_data.begin(), norm_form_data.end());
-    norm_form_data.erase(unique(norm_form_data.begin(), norm_form_data.end()), norm_form_data.end());
-    // cout << norm_form_data.size() << '\n';
-    for(uint64_t d : norm_form_data) normal_forms.emplace_back(mat(d), get_sub_matrix_mask<N, N>(mat(d)));
-
+bool is_minimal(mat m1) {
+    // cout << bitset<64>(d) << '\n';
+    uint64_t d = m1.get_data();
+    for(uint64_t s = (d - 1)&d; s > 0; s = ((s - 1) & d)) {
+        mat m2(s);
+        if(!m2.singular() && comp<N, N>(m2, m1)) return false;
+    }
+    return true;
+}
     
-    counter = 0;
-    for(int i = 0; i < (int)normal_forms.size(); i++){
-        bool fst = true;
-        bool ok = true;
-        for(int j = 0; j < (int)normal_forms.size(); j++){
-            ok = ok && (i == j || ((normal_forms[j].second & normal_forms[i].second) != normal_forms[j].second));
-        }
-        if(ok){
-            
-            cout << "idx: " << counter << '\n';
-            print(normal_forms[i].first);
-            ++counter;
+
+// bool is_minimal(uint64_t d) {
+//     // cout << bitset<64>(d) << '\n';
+//     auto mask1 = get_sub_matrix_mask<N, N>(mat(d));
+//     for(uint64_t s = (d - 1)&d; s > 0; s = ((s - 1) & d)) {
+//         mat m2(s);
+//         if(!m2.singular()) {
+//             auto mask2 = get_sub_matrix_mask<N, N>(m2);
+//             if((mask1 & mask2) == mask2){
+//                 // cout << "counter" << endl;
+//                 // cout << mask1 << endl;
+//                 // cout << mask2 << endl;
+//                 // print(m2);
+//                 return false;
+//             }
+//         }
+//     }
+//     return true;
+// }
+
+template<uint32_t N, uint32_t K>
+bool check_condition(SmallBinaryMatrix<N> m) {
+    auto m1 = m.template sub_matrix<K>((1<<K) - 1, (1<<K) - 1);
+    auto m2 = m.template sub_matrix<K>(((1<<K) - 1)<<(N-K), ((1<<K) - 1)<<(N-K));
+    if constexpr (K > 1) {
+        return check_condition<N, K-1>(m) && !m1.singular() && !m2.singular(); 
+    } else {
+        return !m1.singular() && !m2.singular();
+    }
+}
+
+mat get_good_form(mat m){
+    uint32_t ord_col[N], ord_row[N];
+    for(int i = 0; i < N; i++) ord_col[i] = ord_row[i] = i;
+    do {
+        do {
+            mat tmp = m;
+            tmp.reorder_cols(ord_col);
+            tmp.reorder_rows(ord_row);
+            if(check_condition<N, N>(tmp)) return tmp;
+        } while(next_permutation(ord_row, ord_row + N));
+    } while(next_permutation(ord_col, ord_col + N));
+    cerr << "Cannot find good form of the matrix!" << endl;
+    return mat{};
+}
+
+bool check_mat_for_rows(mat m){
+    for(int i = 0; i < N; i++){
+        for(int j = i + 1; j < N; j++) {
+            uint8_t r1 = m[i];
+            uint8_t r2 = m[j];
+            if(__builtin_popcount(r1^r2) == 1 || (__builtin_popcount(r1^r2) == 2 && (r1&r2) != min(r1, r2))) {
+                return true;
+            }
         }
     }
-    cout << "Number of normal forms: " << norm_form_data.size() << endl;
-    cout << "Number of minimal normal forms: " << counter << '\n';
+    return false;
+}
+
+int main(){
+
+    // mat tmp;
+
+    // for(int i = 0; i < N; i++){
+    //     for(int j = 0; j < N; j++){
+    //         if(j != N - i - 2) {
+    //             tmp[i][j] = 1;
+    //         }
+    //     }
+    // }
+
+
+    // tmp = get_normal_form(tmp);
+
+    // print(tmp);
+
+
+    // cout << (is_minimal(tmp.get_data()) && !tmp.singular() ? "GOOD" : " BAD") << endl;
+
+    // return 0;
+
+    int counter1 = 0, counter2 = 0;
+    int counter = 0;
+    vector<uint64_t> normal_forms;
+
+    ord_mat_generator<N> gen;
+
+    std::set<uint64_t> used;
+
+    do{
+        mat m = gen.get_mat();
+        // uint64_t d = m.get_data();
+
+        // cout << "print" << endl;
+        // print(m);
+
+        uint64_t normal_form_data = get_normal_form(m).get_data();
+        if(used.count(normal_form_data)) {
+            continue;
+        }
+
+        used.insert(normal_form_data);
+
+        counter1++;
+        // cout << "GOOD" << endl;
+
+        // auto mask1 = get_sub_matrix_mask<N, N>(m);
+
+        // bool ok = true;
+        // for(int s = (d - 1)&d; s > 0 && ok; s = ((s - 1) & d)) {
+        //     // mat m2(s);
+        //     // if(!m2.singular()) {
+        //     //     auto mask2 = get_sub_matrix_mask<N, N>(m2);
+        //     //     ok = ok && (mask1 & mask2) != mask2;
+        //     // }
+        // }
+
+        if(is_minimal(m)){
+            if(!check_mat_for_rows(m)) {
+                counter2++;
+                cout << "special: " << counter2 << '\n';
+                print(m);
+            }
+            normal_forms.push_back(normal_form_data);
+            ++counter;
+            cerr << "found: " << counter << " | " << counter2 << endl;
+        }
+    } while(gen.nxt());
+
+    sort(normal_forms.begin(), normal_forms.end());
+    normal_forms.erase(unique(normal_forms.begin(), normal_forms.end()), normal_forms.end());
+
+    for(int i = 0; i < (int)normal_forms.size(); i++){
+        if(check_mat_for_rows(mat(normal_forms[i]))) continue;
+        cout << "id: " << i << endl;
+        mat m = get_good_form(mat(normal_forms[i]));
+        print(m);
+    }
+
+    cout << "minimal: " << normal_forms.size() << endl;
+    cout << "all: " << counter1 << '\n';
 
     return 0;
 }
