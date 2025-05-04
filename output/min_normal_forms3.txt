@@ -1,30 +1,10 @@
-idx: 0
+id: 0
 100
 010
 001
-idx: 1
-100
-001
-011
-idx: 2
-010
-101
-011
-idx: 3
-001
-101
-011
-idx: 4
-010
-001
-111
-idx: 5
-001
-011
-111
-idx: 6
+id: 1
 101
 011
 111
-Number of normal forms: 7
-Number of minimal normal forms: 7
+minimal: 2
+all: 7

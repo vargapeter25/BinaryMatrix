@@ -1,0 +1,77 @@
+minimal cnt: 2
+0 1 2 2 2 3 0 
+idx: 0 | 1-step reductions
+100
+010
+001
+
+idx: 1 | 1-step reductions
+100
+001
+011
+---reduction: 0
+100
+001
+010
+
+idx: 2 | 1-step reductions
+010
+101
+011
+---reduction: 0
+010
+101
+001
+---reduction: 1
+010
+100
+011
+
+idx: 3 | 1-step reductions
+001
+101
+011
+---reduction: 0
+001
+101
+010
+---reduction: 1
+001
+100
+011
+
+idx: 4 | 1-step reductions
+010
+001
+111
+---reduction: 0
+010
+001
+110
+---reduction: 1
+010
+001
+101
+
+idx: 5 | 1-step reductions
+001
+011
+111
+---reduction: 0
+001
+011
+110
+---reduction: 1
+001
+011
+101
+---reduction: 2
+001
+010
+111
+
+idx: 6 | 1-step reductions
+101
+011
+111
+
